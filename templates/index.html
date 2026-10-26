@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GHS Label Print & Export</title>
+  
+  <!-- Библиотека для сохранения в PNG / JPG -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    :root {
+      --label-width: 100mm;
+      --label-height: 70mm;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 20px;
+      background: #f4f5f7;
+    }
+    .no-print {
+      max-width: 650px;
+      margin-bottom: 20px;
+      background: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .btn {
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 6px;
+    }
+    .btn-primary { background: #0066cc; color: #fff; }
+    .btn-secondary { background: #4b5563; color: #fff; }
+    .btn-success { background: #059669; color: #fff; }
+
+    /* Контейнер GHS-этикетки */
+    .ghs-label {
+      width: var(--label-width);
+      height: var(--label-height);
+      background: #ffffff;
+      border: 1.5mm solid #000;
+      box-sizing: border-box;
+      padding: 3mm;
+      display: grid;
+      grid-template-columns: 32mm 1fr;
+      grid-gap: 3mm;
+      overflow: hidden;
+    }
+    .left-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .signal-word {
+      font-size: 14pt;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #cc0000;
+      margin-bottom: 2mm;
+    }
+    .pictograms {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5mm;
+      width: 100%;
+    }
+    .pictograms img {
+      width: 14mm;
+      height: 14mm;
+      display: block;
+      margin: 0 auto;
+    }
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      font-size: 7.5pt;
+      line-height: 1.25;
+      justify-content: space-between;
+    }
+    .chemical-name {
+      font-size: 10.5pt;
+      font-weight: bold;
+      border-bottom: 1px solid #000;
+      padding-bottom: 1mm;
+      margin-bottom: 1.5mm;
+    }
+    .hazard-block { flex-grow: 1; }
+    .hazard-title {
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 7pt;
+      margin-top: 1mm;
+    }
+    .supplier-info {
+      font-size: 6pt;
+      border-top: 0.5px solid #aaa;
+      padding-top: 1mm;
+      color: #333;
+    }
+
+    /* Настройки для физической печати */
+    @media print {
+      body { margin: 0; background: none; }
+      .no-print { display: none !important; }
+      @page { size: 100mm 70mm; margin: 0; }
+      .ghs-label { border: 1px solid #000; page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print">
+    <h2>GHS Label Generator</h2>
+    <form method="get" action="/" style="display: inline-block; margin-bottom: 10px;">
+      <input 
+        type="text" 
+        id="cas" 
+        name="cas" 
+        value="{{ query_cas }}" 
+        placeholder="e.g. 67-56-1" 
+        pattern="^\d{2,7}-\d{2}-\d$" 
+        title="Format must be a valid CAS number, e.g. 67-56-1"
+        required 
+        style="padding: 7px; width: 140px;"
+      >
+      <button type="submit" class="btn btn-primary">Fetch</button>
+    </form>
+
+    <div>
+      <button type="button" onclick="window.print()" class="btn btn-secondary">Print / PDF</button>
+      <button type="button" onclick="downloadImage('png')" class="btn btn-success">Save as PNG (High-Res)</button>
+      <button type="button" onclick="downloadImage('jpeg')" class="btn btn-success">Save as JPG</button>
+    </div>
+  </div>
+
+  {% if not data %}
+  <div class="no-print" style="border-left: 4px solid #dc2626; background: #fee2e2; padding: 12px; color: #991b1b; max-width: 650px;">
+    <strong>Chemical not found!</strong> No GHS data found for CAS: <code>{{ query_cas }}</code>. Please ensure the CAS number is valid.
+  </div>
+  {% else %}
+  <div id="label-to-export" class="ghs-label">
+    <div class="left-col">
+      {% if data.signal %}
+        <div class="signal-word">{{ data.signal }}</div>
+      {% endif %}
+      
+      <div class="pictograms">
+        {% for pic in pic_links %}
+          <img src="{{ pic }}" alt="GHS Pictogram">
+        {% endfor %}
+      </div>
+    </div>
+    
+    <div class="right-col">
+      <div>
+        <div class="chemical-name">{{ data.name }}</div>
+        <div style="font-size: 7pt; margin-bottom: 1.5mm;"><strong>CAS:</strong> {{ data.cas }}</div>
+        
+        <div class="hazard-block">
+          {% if data.is_hazardous %}
+            <div class="hazard-title">Hazard Statements:</div>
+            {% for h in data.h_statements[:4] %}
+              <div>{{ h }}</div>
+            {% endfor %}
+
+            {% if data.p_statements %}
+              <div class="hazard-title" style="margin-top: 1.5mm;">Precautionary Codes:</div>
+              <div>{{ data.p_statements | join(', ') }}</div>
+            {% endif %}
+          {% else %}
+            <div style="margin-top: 5mm; color: #166534; font-size: 8pt;">
+              <strong>Not Classified as Hazardous</strong><br>
+              This substance does not meet the criteria for GHS hazard classification.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="supplier-info">
+        Company: Global Chem Logistics Inc. | Emergency: +1 (800) 424-9300
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <script>
+    async function downloadImage(format = 'png') {
+      const label = document.getElementById('label-to-export');
+      if (!label) return;
+
+      const canvas = await html2canvas(label, {
+        scale: 3.125,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const extension = format === 'jpeg' ? 'jpg' : 'png';
+      const quality = format === 'jpeg' ? 0.95 : 1.0;
+
+      const dataUrl = canvas.toDataURL(mimeType, quality);
+      
+      const link = document.createElement('a');
+      const casNum = "{{ query_cas }}".replace(/[^a-zA-Z0-9_-]/g, '_');
+      link.download = `GHS_Label_casNum.{extension}`;
+      link.href = dataUrl;
+      link.click();
+    }
+  </script>
+</body>
+</html>
+
+
+
