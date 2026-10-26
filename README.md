@@ -16,6 +16,7 @@ A lightweight web application for generating standardized, print-ready GHS/CLP c
 
 1. Clone repository:
    ```bash
-   git clone [https://github.com/](https://github.com/)<your-username>/ghs-label-generator.git
-   cd ghs-label-generator
+   git clone [https://github.com/balakaevaa/GHS-Chemical-Label-Generator.git](https://github.com/balakaevaa/GHS-Chemical-Label-Generator.git)
+   cd GHS-Chemical-Label-Generator
+
 
