@@ -12,3 +12,9 @@ cache.db
 .DS_Store
 
 .vscode/
+.venv/
+.pytest_cache/
+__pycache__/
+.env
+test-results/
+playwright-report/
